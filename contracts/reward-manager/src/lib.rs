@@ -334,6 +334,20 @@ impl RewardManager {
             }
 
             let contract_addr = env.current_contract_address();
+
+            // Defence-in-depth: confirm the contract's actual on-chain XLM
+            // balance is sufficient before transferring. The tracked
+            // pool_balance check above catches accounting errors in this
+            // contract's own bookkeeping, but XlmHandler::validate_pool
+            // catches the case where tracked and actual balances have
+            // diverged (e.g. someone moved funds out of band, or a bug
+            // elsewhere drained the contract without updating tracking).
+            // Without this check, a divergent state would cause the
+            // client.transfer() call below to panic at runtime — see #131.
+            if !XlmHandler::validate_pool(&env, &xlm_token, &contract_addr, amount) {
+                return Err(RewardErrorCode::PoolBalanceDivergence);
+            }
+
             XlmHandler::distribute_xlm(
                 &env,
                 &xlm_token,

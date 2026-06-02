@@ -1088,4 +1088,84 @@ mod test {
             assert_eq!(result, Err(RewardErrorCode::NotInitialized));
         });
     }
+
+    #[test]
+    fn test_distribute_rewards_balance_divergence() {
+        // Simulate the bug described in #131: the tracked pool_balance and
+        // the contract's actual on-chain XLM balance have diverged
+        // (tracked > actual). Without XlmHandler::validate_pool in
+        // distribute_rewards, this would panic at client.transfer() time;
+        // with the fix it should return PoolBalanceDivergence cleanly.
+        let env = Env::default();
+        env.mock_all_auths_allowing_non_root_auth();
+        let (contract_id, token_address, token_admin) = setup(&env);
+        let creator = Address::generate(&env);
+        let player = Address::generate(&env);
+
+        // Fund the creator with 5_000 and route those through fund_reward_pool
+        // so the contract holds 5_000 actual XLM and tracks 5_000.
+        mint_tokens(&env, &token_address, &token_admin, &creator, 5_000);
+        env.as_contract(&contract_id, || {
+            initialize_contract(&env, &token_address);
+            RewardManager::create_reward_pool(env.clone(), creator.clone(), 1, 0).unwrap();
+            RewardManager::fund_reward_pool(env.clone(), creator.clone(), 1, 5_000).unwrap();
+
+            // Sanity check: tracked and actual match before we cause divergence.
+            assert_eq!(RewardManager::get_pool_balance(env.clone(), 1), 5_000);
+        });
+        assert_eq!(get_balance(&env, &token_address, &contract_id), 5_000);
+
+        // Now create divergence by directly inflating the tracked balance
+        // without adding actual funds. This models the class of bug the
+        // issue is defending against: any code path that updates tracking
+        // without moving real tokens (or vice versa).
+        env.as_contract(&contract_id, || {
+            Storage::set_pool_balance(&env, 1, 10_000);
+            assert_eq!(RewardManager::get_pool_balance(env.clone(), 1), 10_000);
+        });
+        // Actual on-chain balance is unchanged.
+        assert_eq!(get_balance(&env, &token_address, &contract_id), 5_000);
+
+        // Attempt to distribute 6_000. The tracked check (10_000 >= 6_000)
+        // passes; the actual-balance check (5_000 >= 6_000) must fail.
+        env.as_contract(&contract_id, || {
+            let config = xlm_only_config(&env, 6_000);
+            let result = RewardManager::distribute_rewards(env.clone(), 1, player.clone(), config);
+            assert_eq!(result, Err(RewardErrorCode::PoolBalanceDivergence));
+        });
+
+        // Verify nothing moved: player has 0, contract still holds 5_000.
+        assert_eq!(get_balance(&env, &token_address, &player), 0);
+        assert_eq!(get_balance(&env, &token_address, &contract_id), 5_000);
+        // And the distribution was not marked complete.
+        env.as_contract(&contract_id, || {
+            assert!(!RewardManager::is_reward_distributed(env.clone(), 1, player.clone()));
+        });
+    }
+
+    #[test]
+    fn test_distribute_rewards_passes_when_balances_match() {
+        // Positive control for the new validate_pool check: when tracked
+        // and actual balances are consistent, distribution proceeds
+        // normally. This complements test_distribute_rewards_success but
+        // explicitly documents the no-divergence happy path for #131.
+        let env = Env::default();
+        env.mock_all_auths_allowing_non_root_auth();
+        let (contract_id, token_address, token_admin) = setup(&env);
+        let creator = Address::generate(&env);
+        let player = Address::generate(&env);
+        mint_tokens(&env, &token_address, &token_admin, &creator, 5_000);
+        env.as_contract(&contract_id, || {
+            initialize_contract(&env, &token_address);
+            RewardManager::create_reward_pool(env.clone(), creator.clone(), 1, 0).unwrap();
+            RewardManager::fund_reward_pool(env.clone(), creator.clone(), 1, 5_000).unwrap();
+
+            let config = xlm_only_config(&env, 2_000);
+            let result = RewardManager::distribute_rewards(env.clone(), 1, player.clone(), config);
+            assert!(result.is_ok(), "expected Ok, got {:?}", result);
+        });
+        assert_eq!(get_balance(&env, &token_address, &player), 2_000);
+        assert_eq!(get_balance(&env, &token_address, &contract_id), 3_000);
+    }
+
 }
