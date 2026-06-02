@@ -1,6 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, Address, Env, Map, String, Symbol, Val, Vec,
+    contract, contractimpl, contracttype, panic_with_error, Address, Env, Map, String, Symbol,
+    Val, Vec,
 };
 
 /// Core display metadata for an NFT (title, description, image URI).
@@ -87,6 +88,17 @@ pub struct NftReward;
 
 #[contractimpl]
 impl NftReward {
+    /// Initializes the NFT reward contract with an optional max supply cap.
+    /// Call this once if you want to enforce a finite NFT supply.
+    pub fn initialize(env: Env, max_supply: Option<u64>) -> Result<(), crate::errors::NftErrorCode> {
+        if Storage::is_initialized(&env) {
+            return Err(crate::errors::NftErrorCode::AlreadyInitialized);
+        }
+
+        Storage::set_max_supply(&env, max_supply);
+        Ok(())
+    }
+
     /// Mints a unique NFT as a reward for hunt completion.
     ///
     /// # Arguments
@@ -103,37 +115,7 @@ impl NftReward {
         player_address: Address,
         metadata: NftMetadata,
     ) -> u64 {
-        if metadata.rarity > 5 {
-            panic!("InvalidRarity");
-        }
-        let minted_at = env.ledger().timestamp();
-
-        let nft_id = Storage::next_nft_id(&env);
-
-        let nft_data = NftData {
-            nft_id,
-            hunt_id,
-            owner: player_address.clone(),
-            completion_player: player_address.clone(),
-            metadata: metadata.clone(),
-            transferable: false,
-            minted_at,
-        };
-
-        Storage::save_nft(&env, &nft_data);
-        Storage::add_nft_to_owner(&env, &player_address, nft_id);
-
-        let event = NftMintedEvent {
-            nft_id,
-            hunt_id,
-            owner: player_address,
-            metadata,
-            minted_at,
-        };
-        env.events()
-            .publish((Symbol::new(&env, "NftMinted"), nft_id), event);
-
-        nft_id
+        Self::mint_reward_nft_impl(env, hunt_id, player_address, metadata, false)
     }
 
     /// Mints a reward NFT from a generic metadata map. This is the entrypoint
@@ -203,6 +185,26 @@ impl NftReward {
             rarity,
             tier,
         };
+        Self::mint_reward_nft_impl(env, hunt_id, player_address, meta, transferable)
+    }
+
+    fn mint_reward_nft_impl(
+        env: Env,
+        hunt_id: u64,
+        player_address: Address,
+        metadata: NftMetadata,
+        transferable: bool,
+    ) -> u64 {
+        if metadata.rarity > 5 {
+            panic_with_error!(&env, crate::errors::NftErrorCode::InvalidRarity);
+        }
+
+        if let Some(max_supply) = Storage::get_max_supply(&env) {
+            let current_supply = Storage::get_nft_counter(&env);
+            if current_supply >= max_supply {
+                panic_with_error!(&env, crate::errors::NftErrorCode::MaxSupplyReached);
+            }
+        }
 
         let minted_at = env.ledger().timestamp();
         let nft_id = Storage::next_nft_id(&env);
@@ -212,7 +214,7 @@ impl NftReward {
             hunt_id,
             owner: player_address.clone(),
             completion_player: player_address.clone(),
-            metadata: meta.clone(),
+            metadata: metadata.clone(),
             transferable,
             minted_at,
         };
@@ -224,7 +226,7 @@ impl NftReward {
             nft_id,
             hunt_id,
             owner: player_address,
-            metadata: meta,
+            metadata,
             minted_at,
         };
         env.events()
