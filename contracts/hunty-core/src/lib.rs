@@ -127,6 +127,7 @@ impl HuntyCore {
     /// * `answer` - Plain-text answer; normalized (trimmed, lowercased) then hashed
     /// * `points` - Points awarded for solving this clue
     /// * `is_required` - Whether this clue must be solved to complete the hunt
+    /// * `difficulty` - Difficulty multiplier (1-10). Points earned = points * difficulty.
     ///
     /// # Returns
     /// The sequential clue ID assigned within the hunt
@@ -138,6 +139,7 @@ impl HuntyCore {
     /// * `TooManyClues` - Hunt already has max clues
     /// * `InvalidQuestion` - Question empty or too long
     /// * `InvalidAnswer` - Answer empty or too long
+    /// * `InvalidDifficulty` - Difficulty is not between 1 and 10
     pub fn add_clue(
         env: Env,
         hunt_id: u64,
@@ -145,7 +147,13 @@ impl HuntyCore {
         answer: String,
         points: u32,
         is_required: bool,
+        difficulty: u8,
     ) -> Result<u32, HuntErrorCode> {
+        // Validate difficulty is in range 1-10
+        if difficulty == 0 || difficulty > 10 {
+            return Err(HuntErrorCode::InvalidDifficulty);
+        }
+
         let hunt = Storage::get_hunt_or_error(&env, hunt_id).map_err(HuntErrorCode::from)?;
         if hunt.status != HuntStatus::Draft {
             return Err(HuntErrorCode::InvalidHuntStatus);
@@ -170,6 +178,7 @@ impl HuntyCore {
             answer_hash,
             points,
             is_required,
+            difficulty,
         };
         Storage::save_clue(&env, hunt_id, &clue);
         let mut updated = hunt;
@@ -185,6 +194,7 @@ impl HuntyCore {
             question,
             points,
             is_required,
+            difficulty,
         };
         env.events()
             .publish((Symbol::new(&env, "ClueAdded"), hunt_id, clue_id), event);
@@ -200,6 +210,7 @@ impl HuntyCore {
             question: clue.question,
             points: clue.points,
             is_required: clue.is_required,
+            difficulty: clue.difficulty,
         })
     }
 
@@ -214,6 +225,7 @@ impl HuntyCore {
                 question: c.question,
                 points: c.points,
                 is_required: c.is_required,
+                difficulty: c.difficulty,
             });
         }
         out
@@ -708,7 +720,9 @@ impl HuntyCore {
             return Err(HuntErrorCode::InvalidAnswer);
         }
 
-        progress.complete_clue(&env, clue_id, clue.points);
+        // Calculate actual points earned with difficulty multiplier
+        let points_earned = clue.points.saturating_mul(clue.difficulty as u32);
+        progress.complete_clue(&env, clue_id, points_earned);
 
         let all_required_completed =
             Self::check_all_required_clues_completed(&env, hunt_id, &progress);
@@ -737,7 +751,7 @@ impl HuntyCore {
             hunt_id,
             player: player.clone(),
             clue_id,
-            points_earned: clue.points,
+            points_earned,
         };
         env.events().publish(
             (Symbol::new(&env, "ClueCompleted"), hunt_id, clue_id),
