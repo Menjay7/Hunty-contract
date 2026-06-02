@@ -186,8 +186,72 @@ impl HuntyCore {
         Ok(hunt_id)
     }
 
-    /// Sets the maximum number of incorrect answer attempts per clue for a hunt.
-    pub fn set_max_attempts(
+    /// Creates a new draft hunt by copying clues from an existing completed hunt.
+    ///
+    /// The template hunt must already be completed. The copied hunt starts as a fresh
+    /// draft with a new hunt ID, creator, title, and description, but reuses the
+    /// template's clue questions, hashes, points, and required flags.
+    pub fn create_hunt_from_template(
+        env: Env,
+        template_hunt_id: u64,
+        creator: Address,
+        title: String,
+        description: String,
+        start_time: Option<u64>,
+        end_time: Option<u64>,
+    ) -> Result<u64, HuntErrorCode> {
+        let template_hunt =
+            Storage::get_hunt(&env, template_hunt_id).ok_or(HuntErrorCode::HuntNotFound)?;
+
+        if template_hunt.status != HuntStatus::Completed {
+            return Err(HuntErrorCode::InvalidHuntStatus);
+        }
+
+        let hunt_id = Self::create_hunt(
+            env.clone(),
+            creator.clone(),
+            title,
+            description,
+            start_time,
+            end_time,
+        )?;
+
+        let template_clues = Storage::list_clues_for_hunt(&env, template_hunt_id);
+        let mut hunt = Storage::get_hunt(&env, hunt_id).ok_or(HuntErrorCode::HuntNotFound)?;
+
+        for i in 0..template_clues.len() {
+            let clue = template_clues.get(i).unwrap();
+            let cloned_clue = Clue {
+                clue_id: Storage::next_clue_id(&env, hunt_id),
+                question: clue.question,
+                answer_hash: clue.answer_hash,
+                points: clue.points,
+                is_required: clue.is_required,
+            };
+
+            Storage::save_clue(&env, hunt_id, &cloned_clue);
+            hunt.total_clues += 1;
+            if cloned_clue.is_required {
+                hunt.required_clues += 1;
+            }
+
+            let event = ClueAddedEvent {
+                hunt_id,
+                clue_id: cloned_clue.clue_id,
+                creator: creator.clone(),
+                points: cloned_clue.points,
+                is_required: cloned_clue.is_required,
+            };
+            env.events()
+                .publish((Symbol::new(&env, "ClueAdded"), hunt_id, cloned_clue.clue_id), event);
+        }
+
+        Storage::save_hunt(&env, &hunt);
+        Ok(hunt_id)
+    }
+
+    /// Updates a draft hunt's title and description. Only the hunt creator can update it.
+    pub fn update_hunt(
         env: Env,
         hunt_id: u64,
         caller: Address,
@@ -603,8 +667,6 @@ impl HuntyCore {
     }
 
     /// Sets the RewardManager contract address for cross-contract reward distribution.
-    ///
-    /// Access control: only the admin (or contract invoker) is allowed to set this.
     pub fn set_reward_manager(env: Env, reward_manager: Address) -> Result<(), HuntErrorCode> {
         Storage::set_reward_manager(&env, &reward_manager);
         let event = RewardManagerSetEvent {
