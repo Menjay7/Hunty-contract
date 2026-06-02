@@ -47,18 +47,19 @@ impl NftHandler {
             soroban_sdk::Symbol::new(env, "hunt_title"),
             hunt_title.into_val(env),
         );
-        metadata.set(soroban_sdk::Symbol::new(env, "rarity"), rarity.into_val(env));
+        metadata.set(
+            soroban_sdk::Symbol::new(env, "rarity"),
+            rarity.into_val(env),
+        );
         metadata.set(soroban_sdk::Symbol::new(env, "tier"), tier.into_val(env));
 
         let mut args = soroban_sdk::Vec::new(env);
+        args.push_back(env.current_contract_address().into_val(env));
         args.push_back(hunt_id.into_val(env));
         args.push_back(player.clone().into_val(env));
         args.push_back(metadata.into_val(env));
 
-        // Specify the concrete error type to avoid type inference ambiguity.
-        // The NFT contract returns a `u64` on success; map any invocation errors
-        // to `RewardErrorCode::NftMintFailed` for the caller.
-        env.try_invoke_contract::<u64, nft_reward::NftErrorCode>(
+        env.try_invoke_contract::<u64, RewardErrorCode>(
             nft_contract,
             &Symbol::new(env, "mint_reward_nft_from_map"),
             args,

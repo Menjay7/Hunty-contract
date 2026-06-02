@@ -8,6 +8,8 @@ impl Storage {
     const NFT_KEY: soroban_sdk::Symbol = symbol_short!("NFT");
     const NFT_COUNTER_KEY: soroban_sdk::Symbol = symbol_short!("CNTR");
     const OWNER_NFT_COUNT_KEY: soroban_sdk::Symbol = symbol_short!("ONFC");
+    const MAX_SUPPLY_KEY: soroban_sdk::Symbol = symbol_short!("MAXS");
+    const INITIALIZED_KEY: soroban_sdk::Symbol = symbol_short!("INIT");
 
     fn nft_key(nft_id: u64) -> (soroban_sdk::Symbol, u64) {
         (Self::NFT_KEY, nft_id)
@@ -32,6 +34,54 @@ impl Storage {
     pub fn remove_nft(env: &Env, nft_id: u64) {
         let key = Self::nft_key(nft_id);
         env.storage().persistent().remove(&key);
+    }
+
+    fn minter_key(minter: &Address) -> (soroban_sdk::Symbol, Address) {
+        (Self::MINTER_KEY, minter.clone())
+    }
+
+    // --- Admin / initialization ---
+
+    pub fn is_initialized(env: &Env) -> bool {
+        env.storage().instance().has(&Self::ADMIN_KEY)
+    }
+
+    pub fn save_admin(env: &Env, admin: &Address) {
+        env.storage().instance().set(&Self::ADMIN_KEY, admin);
+    }
+
+    pub fn get_admin(env: &Env) -> Option<Address> {
+        env.storage().instance().get(&Self::ADMIN_KEY)
+    }
+
+    // --- Max supply ---
+
+    /// Stores max supply. Passing None is a no-op (absence of the key means unlimited).
+    pub fn save_max_supply(env: &Env, max_supply: Option<u64>) {
+        if let Some(supply) = max_supply {
+            env.storage().instance().set(&Self::MAX_SUPPLY_KEY, &supply);
+        }
+    }
+
+    pub fn get_max_supply(env: &Env) -> Option<u64> {
+        env.storage().instance().get(&Self::MAX_SUPPLY_KEY)
+    }
+
+    // --- Minter whitelist ---
+
+    pub fn add_minter(env: &Env, minter: &Address) {
+        let key = Self::minter_key(minter);
+        env.storage().persistent().set(&key, &true);
+    }
+
+    pub fn remove_minter(env: &Env, minter: &Address) {
+        let key = Self::minter_key(minter);
+        env.storage().persistent().remove(&key);
+    }
+
+    pub fn is_minter(env: &Env, minter: &Address) -> bool {
+        let key = Self::minter_key(minter);
+        env.storage().persistent().get(&key).unwrap_or(false)
     }
 
     /// Saves an NFT to persistent storage.
@@ -62,6 +112,28 @@ impl Storage {
             .unwrap_or(0)
     }
 
+    /// Marks the contract initialized and stores the optional max supply cap.
+    pub fn set_max_supply(env: &Env, max_supply: Option<u64>) {
+        env.storage().persistent().set(&Self::MAX_SUPPLY_KEY, &max_supply);
+        env.storage().persistent().set(&Self::INITIALIZED_KEY, &true);
+    }
+
+    /// Returns the configured max supply cap, if one has been stored.
+    pub fn get_max_supply(env: &Env) -> Option<u64> {
+        env.storage()
+            .persistent()
+            .get(&Self::MAX_SUPPLY_KEY)
+            .unwrap_or(None)
+    }
+
+    /// Returns whether the contract has been initialized.
+    pub fn is_initialized(env: &Env) -> bool {
+        env.storage()
+            .persistent()
+            .get(&Self::INITIALIZED_KEY)
+            .unwrap_or(false)
+    }
+
     /// Adds an NFT ID to the owner's index.
     /// Each entry is stored at its own key so no single entry grows unboundedly.
     pub fn add_nft_to_owner(env: &Env, owner: &Address, nft_id: u64) {
@@ -78,44 +150,6 @@ impl Storage {
             .set(&Self::owner_nft_entry_key(owner, count), &nft_id);
         env.storage().persistent().set(&count_key, &(count + 1));
         env.storage().persistent().set(&exist_key, &());
-    }
-
-    /// Removes an NFT ID from the owner's index.
-    pub fn remove_nft_from_owner(env: &Env, owner: &Address, nft_id: u64) {
-        let count_key = Self::owner_nft_count_key(owner);
-        let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
-
-        let exist_key = Self::owner_nft_exist_key(owner, nft_id);
-        if !env.storage().persistent().has(&exist_key) {
-            return;
-        }
-
-        // Find the entry index and swap-remove with the last entry
-        let mut found = false;
-        for i in 0..count {
-            let entry_key = Self::owner_nft_entry_key(owner, i);
-            if let Some(stored_id) = env.storage().persistent().get::<_, u64>(&entry_key) {
-                if stored_id == nft_id {
-                    let last_idx = count - 1;
-                    if i != last_idx {
-                        let last_key = Self::owner_nft_entry_key(owner, last_idx);
-                        if let Some(last_id) = env.storage().persistent().get::<_, u64>(&last_key) {
-                            env.storage().persistent().set(&entry_key, &last_id);
-                        }
-                        env.storage().persistent().remove(&last_key);
-                    } else {
-                        env.storage().persistent().remove(&entry_key);
-                    }
-                    found = true;
-                    break;
-                }
-            }
-        }
-
-        if found {
-            env.storage().persistent().set(&count_key, &(count - 1));
-        }
-        env.storage().persistent().remove(&exist_key);
     }
 
     /// Gets all NFT IDs owned by an address by reading individual entries.
