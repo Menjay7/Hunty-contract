@@ -9,10 +9,12 @@ Before diving in, let's make sure you have everything you need to get started. D
 
 ### What You'll Need
 
+
 - **Rust** - We're using the latest stable version, so make sure yours is up to date
 - **Stellar CLI** - You'll need the `stellar` command installed for building contracts
 - **Git** - For version control (you probably already have this!)
 - **Basic Soroban knowledge** - Don't worry if you're still learning! We have good first issues that are perfect for getting your feet wet
+
 
 ### Getting Your Environment Ready
 
