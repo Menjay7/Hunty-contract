@@ -27,6 +27,7 @@ pub enum HuntErrorCode {
     RewardDistributionFailed = 20,
     NoRewardsConfigured = 21,
     NoRequiredClues = 22,
+    AlreadyInitialized = 23,
 }
 
 #[derive(Debug)]

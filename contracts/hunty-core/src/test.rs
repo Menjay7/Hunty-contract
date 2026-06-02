@@ -1071,6 +1071,7 @@ mod test {
         env.mock_all_auths();
 
         let creator = Address::generate(&env);
+        let admin = Address::generate(&env);
         let question = String::from_str(&env, "Valid question");
         let answer = String::from_str(&env, "a");
 
@@ -1078,6 +1079,10 @@ mod test {
         let (reward_manager_id, token_address, _) = setup_reward_manager(&env, None);
         let sac = token::StellarAssetClient::new(&env, &token_address);
         sac.mint(&creator, &5_000);
+
+        as_core_contract(&env, &core_id, |env| {
+            HuntyCore::initialize(env.clone(), admin.clone()).unwrap();
+        });
 
         let hunt_id = as_core_contract(&env, &core_id, |env| {
             let hunt_id = HuntyCore::create_hunt(
@@ -1091,7 +1096,8 @@ mod test {
             .unwrap();
             HuntyCore::add_clue(env.clone(), hunt_id, question, answer, 1, true).unwrap();
             HuntyCore::activate_hunt(env.clone(), hunt_id, creator.clone()).unwrap();
-            HuntyCore::set_reward_manager(env.clone(), reward_manager_id.clone());
+            env.mock_all_auths();
+            HuntyCore::set_reward_manager(env.clone(), admin.clone(), reward_manager_id.clone()).unwrap();
             hunt_id
         });
 
@@ -2107,6 +2113,7 @@ mod test {
         let creator = Address::generate(&env);
         let player = Address::generate(&env);
         let funder = Address::generate(&env);
+        let admin = Address::generate(&env);
 
         // Register contracts
         let core_id = env.register_contract(None, HuntyCore);
@@ -2119,6 +2126,11 @@ mod test {
         // Mint XLM to funder
         let sac_client = token::StellarAssetClient::new(&env, &token_address);
         sac_client.mint(&funder, &10_000);
+
+        // Initialize the contract with admin
+        as_core_contract(&env, &core_id, |env| {
+            HuntyCore::initialize(env.clone(), admin.clone()).unwrap();
+        });
 
         // Create hunt, add required clue, configure rewards, activate, register player, complete clues
         let hunt_id = as_core_contract(&env, &core_id, |env| {
@@ -2171,7 +2183,7 @@ mod test {
         // Wire HuntyCore -> RewardManager
         env.mock_all_auths();
         as_core_contract(&env, &core_id, |env| {
-            HuntyCore::set_reward_manager(env.clone(), reward_manager_id.clone());
+            HuntyCore::set_reward_manager(env.clone(), admin.clone(), reward_manager_id.clone()).unwrap();
         });
 
         // Register player and complete hunt
@@ -2260,10 +2272,16 @@ mod test {
 
         let creator = Address::generate(&env);
         let player = Address::generate(&env);
+        let admin = Address::generate(&env);
 
         // Create a completed hunt with rewards configured (but no RewardManager funding/initialization)
         let (hunt_id, core_id) =
             setup_completed_hunt_with_rewards(&env, &creator, &player, 5, 1_000);
+
+        // Initialize the contract with admin
+        as_core_contract(&env, &core_id, |env| {
+            HuntyCore::initialize(env.clone(), admin.clone()).unwrap();
+        });
 
         // Deploy RewardManager but DO NOT call initialize or fund_reward_pool so distribution fails
         let reward_manager_id = env.register(RewardManager, ());
@@ -2271,7 +2289,7 @@ mod test {
         // Wire HuntyCore -> RewardManager
         env.mock_all_auths();
         as_core_contract(&env, &core_id, |env| {
-            HuntyCore::set_reward_manager(env.clone(), reward_manager_id.clone());
+            HuntyCore::set_reward_manager(env.clone(), admin.clone(), reward_manager_id.clone()).unwrap();
         });
 
         // Attempt to complete hunt - RewardManager::distribute_rewards should fail
@@ -2295,6 +2313,7 @@ mod test {
         let player2 = Address::generate(&env);
         let player3 = Address::generate(&env);
         let funder = Address::generate(&env);
+        let admin = Address::generate(&env);
 
         // Register contracts
         let core_id = env.register_contract(None, HuntyCore);
@@ -2307,6 +2326,11 @@ mod test {
         // Mint XLM to funder: 3 players * 2_000 each = 6_000
         let sac_client = token::StellarAssetClient::new(&env, &token_address);
         sac_client.mint(&funder, &6_000);
+
+        // Initialize the contract with admin
+        as_core_contract(&env, &core_id, |env| {
+            HuntyCore::initialize(env.clone(), admin.clone()).unwrap();
+        });
 
         // Create hunt, add required clue, configure rewards, activate
         let hunt_id = as_core_contract(&env, &core_id, |env| {
@@ -2359,7 +2383,7 @@ mod test {
         // Wire HuntyCore -> RewardManager
         env.mock_all_auths();
         as_core_contract(&env, &core_id, |env| {
-            HuntyCore::set_reward_manager(env.clone(), reward_manager_id.clone());
+            HuntyCore::set_reward_manager(env.clone(), admin.clone(), reward_manager_id.clone()).unwrap();
         });
 
         // Helper closure to register, answer, and claim for a player

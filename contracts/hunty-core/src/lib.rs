@@ -26,6 +26,23 @@ pub struct HuntyCore;
 
 #[contractimpl]
 impl HuntyCore {
+    /// Initializes the contract with an admin address.
+    /// This function can only be called once during contract deployment.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `admin` - The admin address that will have administrative privileges
+    ///
+    /// # Errors
+    /// * `AlreadyInitialized` - If the contract has already been initialized
+    pub fn initialize(env: Env, admin: Address) -> Result<(), HuntErrorCode> {
+        if Storage::get_admin(&env).is_some() {
+            return Err(HuntErrorCode::AlreadyInitialized);
+        }
+        Storage::set_admin(&env, &admin);
+        Ok(())
+    }
+
     /// Creates a new scavenger hunt with the provided metadata.
     ///
     /// # Arguments
@@ -398,8 +415,23 @@ impl HuntyCore {
     }
 
     /// Sets the RewardManager contract address for cross-contract reward distribution.
-    pub fn set_reward_manager(env: Env, reward_manager: Address) {
+    /// Only the admin can call this function.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `admin` - The admin address (must authorize the call)
+    /// * `reward_manager` - The RewardManager contract address
+    ///
+    /// # Errors
+    /// * `Unauthorized` - If caller is not the admin
+    pub fn set_reward_manager(env: Env, admin: Address, reward_manager: Address) -> Result<(), HuntErrorCode> {
+        let stored_admin = Storage::get_admin(&env).ok_or(HuntErrorCode::Unauthorized)?;
+        if admin != stored_admin {
+            return Err(HuntErrorCode::Unauthorized);
+        }
+        admin.require_auth();
         Storage::set_reward_manager(&env, &reward_manager);
+        Ok(())
     }
 
     /// Completes a hunt for a player and distributes rewards.
