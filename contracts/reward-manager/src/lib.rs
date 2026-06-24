@@ -51,6 +51,14 @@ pub struct AdminWithdrawEvent {
     pub amount: i128,
 }
 
+/// Event emitted when the default NFT reward contract is set or updated.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct NftContractSetEvent {
+    pub old_contract: Option<Address>,
+    pub new_contract: Address,
+}
+
 #[contractimpl]
 impl RewardManager {
     /// Initializes the RewardManager with the XLM token contract address (SAC).
@@ -68,6 +76,7 @@ impl RewardManager {
 
     /// Sets the default NftReward contract address used for NFT distributions
     /// when a per-call NFT contract is not provided.
+    /// Emits an NftContractSetEvent with the old and new contract addresses.
     pub fn set_nft_reward_contract(
         env: Env,
         admin: Address,
@@ -78,7 +87,22 @@ impl RewardManager {
         if configured_admin != admin {
             return Err(RewardErrorCode::Unauthorized);
         }
+        
+        // Capture the old contract address before updating
+        let old_contract = Storage::get_nft_contract(&env);
+        
+        // Update the contract
         Storage::set_nft_contract(&env, &nft_contract);
+        
+        // Emit the event
+        env.events().publish(
+            symbol_short!("NFT_SET"),
+            NftContractSetEvent {
+                old_contract,
+                new_contract: nft_contract,
+            },
+        );
+        
         Ok(())
     }
 
