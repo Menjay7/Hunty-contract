@@ -30,6 +30,39 @@ fn image_uri_is_valid(_uri: &String) -> bool {
     true
 }
 
+fn string_to_bytes<const N: usize>(value: &String) -> Option<([u8; N], usize)> {
+    let len = value.len() as usize;
+    if len > N {
+        return None;
+    }
+
+    let mut buf = [0u8; N];
+    value.copy_into_slice(&mut buf[..len]);
+    Some((buf, len))
+}
+
+fn replace_prefix(env: &Env, value: &String, old_prefix: &String, new_prefix: &String) -> Option<String> {
+    let (value_buf, value_len) = string_to_bytes::<4096>(value)?;
+    let (old_buf, old_len) = string_to_bytes::<4096>(old_prefix)?;
+    let (new_buf, new_len) = string_to_bytes::<4096>(new_prefix)?;
+
+    if value_len < old_len || value_buf[..old_len] != old_buf[..old_len] {
+        return None;
+    }
+
+    let suffix_len = value_len - old_len;
+    let total_len = new_len + suffix_len;
+    if total_len > 4096 {
+        return None;
+    }
+
+    let mut out = [0u8; 4096];
+    out[..new_len].copy_from_slice(&new_buf[..new_len]);
+    out[new_len..total_len].copy_from_slice(&value_buf[old_len..value_len]);
+    let updated = core::str::from_utf8(&out[..total_len]).ok()?;
+    Some(String::from_str(env, updated))
+}
+
 /// Complete metadata returned by get_nft_metadata (includes NftData-derived fields).
 #[contracttype]
 #[derive(Clone, Debug)]
@@ -101,11 +134,22 @@ pub struct AdminImageUrisUpdatedEvent {
     pub updated_count: u32,
 }
 
+/// Event emitted when an owner changes operator approval.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct OperatorChangedEvent {
+    pub owner: Address,
+    pub operator: Address,
+    pub approved: bool,
+}
+
 mod errors;
 pub use errors::NftErrorCode;
 mod migration;
 mod storage;
 use storage::Storage;
+
+const CONTRACT_VERSION: u32 = 1;
 
 #[contract]
 pub struct NftReward;
@@ -126,7 +170,7 @@ impl NftReward {
         admin.require_auth();
         Storage::save_admin(&env, &admin);
         Storage::set_max_supply(&env, max_supply);
-        Storage::set_contract_version(&env, Self::CONTRACT_VERSION);
+        Storage::set_contract_version(&env, CONTRACT_VERSION);
         Ok(())
     }
 
@@ -284,6 +328,7 @@ impl NftReward {
             nft_id,
             hunt_id,
             owner: player_address.clone(),
+            completion_player: player_address.clone(),
             metadata: metadata.clone(),
             transferable,
             minted_at,
@@ -344,7 +389,7 @@ impl NftReward {
         reward_manager: Address,
     ) -> Result<(), crate::errors::NftErrorCode> {
         Self::require_admin(&env, &admin)?;
-        Storage::save_reward_manager(&env, &reward_manager);
+        Storage::set_reward_manager(&env, &reward_manager);
         Ok(())
     }
 
@@ -374,13 +419,12 @@ impl NftReward {
 
         for nft_id in 1..=total {
             if let Some(mut nft) = Storage::get_nft(&env, nft_id) {
-                let uri = nft.metadata.image_uri.clone();
-                let uri_str = uri.as_str();
-
-                if uri_str.starts_with(old_prefix.as_str()) {
-                    let suffix = uri_str.strip_prefix(old_prefix.as_str()).unwrap_or("");
-                    let new_uri = String::from_str(&env, new_prefix.as_str())
-                        .concat(&String::from_str(&env, suffix));
+                if let Some(new_uri) = replace_prefix(
+                    &env,
+                    &nft.metadata.image_uri,
+                    &old_prefix,
+                    &new_prefix,
+                ) {
                     nft.metadata.image_uri = new_uri;
                     Storage::save_nft(&env, &nft);
                     updated += 1;
@@ -632,7 +676,7 @@ impl NftReward {
 
     /// Returns the on-chain version stored during initialize, or the compiled constant.
     pub fn contract_version(env: Env) -> u32 {
-        Storage::get_contract_version(&env).unwrap_or(Self::CONTRACT_VERSION)
+        Storage::get_contract_version(&env).unwrap_or(CONTRACT_VERSION)
     }
 
     /// Grants `operator` the ability to manage all NFTs owned by `owner`.
