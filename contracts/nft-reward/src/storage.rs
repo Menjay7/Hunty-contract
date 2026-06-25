@@ -7,9 +7,12 @@ pub struct Storage;
 impl Storage {
     const NFT_KEY: soroban_sdk::Symbol = symbol_short!("NFT");
     const NFT_COUNTER_KEY: soroban_sdk::Symbol = symbol_short!("CNTR");
-    const OWNER_NFT_COUNT_KEY: soroban_sdk::Symbol = symbol_short!("ONFC");
-    const MAX_SUPPLY_KEY: soroban_sdk::Symbol = symbol_short!("MAXS");
-    const INITIALIZED_KEY: soroban_sdk::Symbol = symbol_short!("INIT");
+const OWNER_NFTS_KEY: soroban_sdk::Symbol = symbol_short!("ONFT");
+const ALL_NFTS_KEY: soroban_sdk::Symbol = symbol_short!("ANFT");
+const OWNER_NFT_COUNT_KEY: soroban_sdk::Symbol = symbol_short!("ONFC");
+const MAX_SUPPLY_KEY: soroban_sdk::Symbol = symbol_short!("MAXS");
+const INITIALIZED_KEY: soroban_sdk::Symbol = symbol_short!("INIT");
+
 
     fn nft_key(nft_id: u64) -> (soroban_sdk::Symbol, u64) {
         (Self::NFT_KEY, nft_id)
@@ -88,6 +91,19 @@ impl Storage {
     pub fn save_nft(env: &Env, nft: &NftData) {
         let key = Self::nft_key(nft.nft_id);
         env.storage().persistent().set(&key, nft);
+        
+        // Also add to all NFTs list for iteration (only if not already present)
+        let mut all_nfts = env
+            .storage()
+            .persistent()
+            .get(&Self::ALL_NFTS_KEY)
+            .unwrap_or_else(|| Vec::new(env));
+        
+        // Check if NFT ID already exists to avoid duplicates
+        if all_nfts.first_index_of(nft.nft_id).is_none() {
+            all_nfts.push_back(nft.nft_id);
+            env.storage().persistent().set(&Self::ALL_NFTS_KEY, &all_nfts);
+        }
     }
 
     /// Retrieves an NFT by ID.
@@ -170,5 +186,13 @@ impl Storage {
             }
         }
         ids
+    }
+
+    /// Gets all NFT IDs in the contract.
+    pub fn get_all_nft_ids(env: &Env) -> Vec<u64> {
+        env.storage()
+            .persistent()
+            .get(&Self::ALL_NFTS_KEY)
+            .unwrap_or_else(|| Vec::new(env))
     }
 }

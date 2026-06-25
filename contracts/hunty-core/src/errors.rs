@@ -29,8 +29,11 @@ pub enum HuntErrorCode {
     RewardDistributionFailed = 20,
     NoRewardsConfigured = 21,
     NoRequiredClues = 22,
-    InvalidRarity = 23,
-    InvalidTimeBonusConfig = 24,
+git add .
+git commit -m "Resolved merge conflict in enum definitions"
+InvalidRarity = 23,
+InvalidTimeBonusConfig = 24,
+
 }
 
 #[derive(Debug)]
@@ -57,8 +60,10 @@ pub enum HuntError {
     RewardDistributionFailed { hunt_id: u64 },
     NoRewardsConfigured { hunt_id: u64 },
     NoRequiredClues { hunt_id: u64 },
-    InvalidRarity { value: u32 },
-    InvalidTimeBonusConfig,
+ScoreOverflow,
+InvalidRarity { value: u32 },
+InvalidTimeBonusConfig,
+
 }
 
 impl fmt::Display for HuntError {
@@ -137,11 +142,16 @@ impl fmt::Display for HuntError {
             HuntError::NoRequiredClues { hunt_id } => {
                 write!(f, "Hunt {} has no required clues; at least one required clue must exist before activation", hunt_id)
             }
-            HuntError::InvalidEndTime => {
-                write!(f, "Invalid end time: must be in the future")
-            }
-            HuntError::InvalidTimeBonusConfig => {
-                write!(f, "Invalid time bonus configuration")
+HuntError::ScoreOverflow => {
+    write!(f, "Score calculation overflow")
+}
+HuntError::InvalidEndTime => {
+    write!(f, "Invalid end time: must be in the future")
+}
+HuntError::InvalidTimeBonusConfig => {
+    write!(f, "Invalid time bonus configuration")
+}
+
             }
         }
     }
@@ -172,8 +182,10 @@ impl From<HuntError> for HuntErrorCode {
             HuntError::RewardDistributionFailed { .. } => HuntErrorCode::RewardDistributionFailed,
             HuntError::NoRewardsConfigured { .. } => HuntErrorCode::NoRewardsConfigured,
             HuntError::NoRequiredClues { .. } => HuntErrorCode::NoRequiredClues,
-            HuntError::InvalidRarity { .. } => HuntErrorCode::InvalidRarity,
-            HuntError::InvalidTimeBonusConfig => HuntErrorCode::InvalidTimeBonusConfig,
+HuntError::ScoreOverflow => HuntErrorCode::ScoreOverflow,
+HuntError::InvalidRarity { .. } => HuntErrorCode::InvalidRarity,
+HuntError::InvalidTimeBonusConfig => HuntErrorCode::InvalidTimeBonusConfig,
+
         }
     }
 }

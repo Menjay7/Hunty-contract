@@ -224,15 +224,26 @@ impl PlayerProgress {
         self.completed_clue_index.get(clue_id).is_some()
     }
 
-    pub fn complete_clue(&mut self, _env: &Env, clue_id: u32, points: u32, is_required: bool) {
-        if !self.has_completed_clue(clue_id) {
-            self.completed_clues.push_back(clue_id);
-            self.completed_clue_index.set(clue_id, true);
-            if is_required {
-                self.required_completed_count += 1;
-            }
-            self.total_score = self.total_score.saturating_add(points);
+pub fn complete_clue(
+    &mut self,
+    _env: &Env,
+    clue_id: u32,
+    points: u32,
+    is_required: bool,
+) -> Result<(), crate::errors::HuntErrorCode> {
+    if !self.has_completed_clue(clue_id) {
+        self.completed_clues.push_back(clue_id);
+        self.completed_clue_index.set(clue_id, true);
+        if is_required {
+            self.required_completed_count += 1;
         }
+        self.total_score = self.total_score.checked_add(points)
+            .ok_or(crate::errors::HuntErrorCode::ScoreOverflow)?;
+    }
+    Ok(())
+}
+
+        Ok(())
     }
 
     /// Increments the attempt counter for a clue and returns the new attempt number.

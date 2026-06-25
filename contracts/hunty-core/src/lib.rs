@@ -1070,9 +1070,9 @@ impl HuntyCore {
             );
             return Err(HuntErrorCode::InvalidAnswer);
         }
+let points_earned = hunt.bonus_score(clue.points, current_time);
+progress.complete_clue(&env, clue_id, points_earned, clue.is_required);
 
-        let points_earned = hunt.bonus_score(clue.points, current_time);
-        progress.complete_clue(&env, clue_id, points_earned, clue.is_required);
 
         let all_required_completed =
             Self::check_all_required_clues_completed(hunt.required_clues, &progress);
@@ -1363,12 +1363,19 @@ impl HuntyCore {
         for i in 0..players.len() {
             let p = players.get(i).unwrap();
             if p.is_completed {
-                completed_count += 1;
+                completed_count = completed_count.checked_add(1).ok_or(HuntErrorCode::ScoreOverflow)?;
             }
-            total_score_sum = total_score_sum.saturating_add(p.total_score as u64);
+total_score_sum = match total_score_sum.checked_add(p.total_score as u64) {
+    Some(val) => val,
+    None => {
+        // fallback to saturating add instead of error
+        total_score_sum.saturating_add(p.total_score as u64)
+    }
+};
+
         }
         let completion_rate_percent = if total_players > 0 {
-            (completed_count * 100) / total_players
+            (completed_count.checked_mul(100).ok_or(HuntErrorCode::ScoreOverflow)? / total_players)
         } else {
             0
         };

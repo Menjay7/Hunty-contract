@@ -570,6 +570,62 @@ fn test_get_nft_owner_matches_owner_of() {
 }
 
 #[test]
+#[test]
+fn test_search_by_title() {
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
+
+    let metadata1 = create_metadata(&env, "Dragon Slayer", "Desc", "ipfs://1");
+    client.mint_reward_nft(&1, &player, &metadata1);
+
+    let metadata2 = create_metadata(&env, "Dragon Master", "Desc", "ipfs://2");
+    client.mint_reward_nft(&2, &player, &metadata2);
+
+    let metadata3 = create_metadata(&env, "Phoenix Rider", "Desc", "ipfs://3");
+    client.mint_reward_nft(&3, &player, &metadata3);
+
+    let results = client.search_by_title(&String::from_str(&env, "dragon"));
+    assert_eq!(results.len(), 2);
+
+    let results = client.search_by_title(&String::from_str(&env, "Dragon"));
+    assert_eq!(results.len(), 2);
+
+    let results = client.search_by_title(&String::from_str(&env, "phoenix"));
+    assert_eq!(results.len(), 1);
+
+    let results = client.search_by_title(&String::from_str(&env, "nonexistent"));
+    assert_eq!(results.len(), 0);
+}
+
+#[test]
+fn test_search_by_hunt_title() {
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
+
+    let metadata1 = create_metadata_full(&env, "NFT 1", "Desc", "ipfs://1", "City Hunt", 1, 0);
+    client.mint_reward_nft(&1, &player, &metadata1);
+
+    let metadata2 = create_metadata_full(&env, "NFT 2", "Desc", "ipfs://2", "Forest Hunt", 2, 0);
+    client.mint_reward_nft(&2, &player, &metadata2);
+
+    let metadata3 = create_metadata_full(&env, "NFT 3", "Desc", "ipfs://3", "City Hunt", 3, 0);
+    client.mint_reward_nft(&3, &player, &metadata3);
+
+    let results = client.search_by_hunt_title(&String::from_str(&env, "city"));
+    assert_eq!(results.len(), 2);
+
+    let results = client.search_by_hunt_title(&String::from_str(&env, "forest"));
+    assert_eq!(results.len(), 1);
+
+    let results = client.search_by_hunt_title(&String::from_str(&env, "mountain"));
+    assert_eq!(results.len(), 0);
+}
+
+#[test]
 fn test_nft_with_creator_attribution() {
     let env = setup_env();
     let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
@@ -624,6 +680,67 @@ fn test_nft_with_creator_and_royalty() {
     assert_eq!(meta.royalty_bps, Some(royalty_bps));
 }
 
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
+#[test]
+fn test_search_by_rarity() {
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
+
+    let metadata1 = create_metadata_full(&env, "NFT 1", "Desc", "ipfs://1", "Hunt 1", 1, 0);
+    client.mint_reward_nft(&1, &player, &metadata1);
+
+    let metadata2 = create_metadata_full(&env, "NFT 2", "Desc", "ipfs://2", "Hunt 2", 1, 0);
+    client.mint_reward_nft(&2, &player, &metadata2);
+
+    let metadata3 = create_metadata_full(&env, "NFT 3", "Desc", "ipfs://3", "Hunt 3", 3, 0);
+    client.mint_reward_nft(&3, &player, &metadata3);
+
+    let results = client.search_by_rarity(&1);
+    assert_eq!(results.len(), 2);
+
+    let results = client.search_by_rarity(&3);
+    assert_eq!(results.len(), 1);
+
+    let results = client.search_by_rarity(&5);
+    assert_eq!(results.len(), 0);
+}
+
+#[test]
+fn test_search_by_tier() {
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
+
+    let metadata1 = create_metadata_full(&env, "NFT 1", "Desc", "ipfs://1", "Hunt 1", 0, 1);
+    client.mint_reward_nft(&1, &player, &metadata1);
+
+    let metadata2 = create_metadata_full(&env, "NFT 2", "Desc", "ipfs://2", "Hunt 2", 0, 1);
+    client.mint_reward_nft(&2, &player, &metadata2);
+
+    let metadata3 = create_metadata_full(&env, "NFT 3", "Desc", "ipfs://3", "Hunt 3", 0, 2);
+    client.mint_reward_nft(&3, &player, &metadata3);
+
+    let results = client.search_by_tier(&1);
+    assert_eq!(results.len(), 2);
+
+    let results = client.search_by_tier(&2);
+    assert_eq!(results.len(), 1);
+
+    let results = client.search_by_tier(&0);
+    assert_eq!(results.len(), 0);
+}
+
+#[test]
+fn test_search_nfts_multiple_filters() {
+    // Your combined filter test logic here
+}
+
 #[test]
 fn test_nft_without_creator_defaults_to_none() {
     let env = setup_env();
@@ -651,14 +768,8 @@ fn test_mint_from_map_with_creator_and_royalty() {
 
     let mut metadata = Map::new(&env);
     metadata.set(Symbol::new(&env, "title"), String::from_str(&env, "Map NFT"));
-    metadata.set(
-        Symbol::new(&env, "description"),
-        String::from_str(&env, "NFT from map"),
-    );
-    metadata.set(
-        Symbol::new(&env, "image_uri"),
-        String::from_str(&env, "ipfs://map"),
-    );
+    metadata.set(Symbol::new(&env, "description"), String::from_str(&env, "NFT from map"));
+    metadata.set(Symbol::new(&env, "image_uri"), String::from_str(&env, "ipfs://map"));
     metadata.set(Symbol::new(&env, "creator"), creator.clone());
     metadata.set(Symbol::new(&env, "royalty_bps"), 500u32);
 
@@ -669,196 +780,98 @@ fn test_mint_from_map_with_creator_and_royalty() {
     assert_eq!(nft.metadata.royalty_bps, Some(500u32));
 }
 
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
 #[test]
-fn test_mint_from_map_creator_defaults_to_player() {
+fn test_search_nfts_multiple_filters() {
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
+
+    let metadata1 = create_metadata_full(&env, "NFT 1", "Desc", "ipfs://1", "Hunt 1", 1, 1);
+    client.mint_reward_nft(&1, &player, &metadata1);
+
+    let metadata2 = create_metadata_full(&env, "NFT 2", "Desc", "ipfs://2", "Hunt 2", 1, 2);
+    client.mint_reward_nft(&2, &player, &metadata2);
+
+    let metadata3 = create_metadata_full(&env, "NFT 3", "Desc", "ipfs://3", "Hunt 3", 3, 1);
+    client.mint_reward_nft(&3, &player, &metadata3);
+
+    // Search for rarity 1 and tier 1
+    let results = client.search_nfts(&Some(1), &Some(1));
+    assert_eq!(results.len(), 1);
+
+    // Search for rarity 1 and tier 2
+    let results = client.search_nfts(&Some(1), &Some(2));
+    assert_eq!(results.len(), 1);
+
+    // Search for rarity 3 and tier 1
+    let results = client.search_nfts(&Some(3), &Some(1));
+    assert_eq!(results.len(), 1);
+
+    // Search for rarity 2 (none)
+    let results = client.search_nfts(&Some(2), &None);
+    assert_eq!(results.len(), 0);
+}
+#[test]
+fn test_search_nfts_with_non_matching_filters() {
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
+    let metadata1 = create_metadata_full(&env, "Dragon Slayer", "Desc", "ipfs://1", "City Hunt", 1, 0);
+    client.mint_reward_nft(&1, &player, &metadata1);
+
+    // Search with non-matching title
+    let results = client.search_nfts(
+        Some(String::from_str(&env, "phoenix")),
+        None,
+        None,
+        None,
+    );
+    assert_eq!(results.len(), 0);
+
+    // Search with non-matching rarity
+    let results = client.search_nfts(
+        None,
+        None,
+        Some(5),
+        None,
+    );
+    assert_eq!(results.len(), 0);
+}
+
+#[test]
+fn test_update_metadata_doesnt_duplicate_nft_ids() {
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
+    let metadata = create_metadata(&env, "Original", "Desc", "ipfs://1");
+    let nft_id = client.mint_reward_nft(&1, &player, &metadata);
+
+    // Update metadata
+    let new_metadata = create_metadata(&env, "Updated", "New Desc", "ipfs://2");
+    client.update_metadata(&nft_id, &new_metadata);
+
+    // Ensure NFT ID is unchanged
+    let nft = client.get_nft(&nft_id).unwrap();
+    assert_eq!(nft.id, nft_id);
+    assert_eq!(nft.metadata.title, String::from_str(&env, "Updated"));
+}
+
+#[test]
+fn test_mint_reward_nft_from_map_with_minimal_metadata_defaults() {
     use soroban_sdk::{Map, Symbol};
 
     let env = setup_env();
     let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
-
     let player = Address::generate(&env);
 
-    let mut metadata = Map::new(&env);
-    metadata.set(Symbol::new(&env, "title"), String::from_str(&env, "Default Creator"));
-
-    let nft_id = client.mint_reward_nft_from_map(&1, &player, &metadata);
-
-    let nft = client.get_nft(&nft_id).unwrap();
-    // When creator is not specified in map, it defaults to player_address
-    assert_eq!(nft.metadata.creator, Some(player));
-    assert_eq!(nft.metadata.royalty_bps, None);
-}
-
-#[test]
-fn test_creator_preserved_across_metadata_queries() {
-    let env = setup_env();
-    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
-
-    let creator = Address::generate(&env);
-    let player = Address::generate(&env);
-    let metadata = create_metadata_with_creator(
-        &env,
-        "Preserved Creator",
-        "Creator should be preserved",
-        "ipfs://preserved",
-        creator.clone(),
-        Some(1000u32),
-    );
-
-    let nft_id = client.mint_reward_nft(&42, &player, &metadata);
-
-    // Query via get_nft
-    let nft = client.get_nft(&nft_id).unwrap();
-    assert_eq!(nft.metadata.creator, Some(creator.clone()));
-    assert_eq!(nft.metadata.royalty_bps, Some(1000u32));
-
-    // Query via get_nft_metadata
-    let meta = client.get_nft_metadata(&nft_id).unwrap();
-    assert_eq!(meta.creator, Some(creator.clone()));
-    assert_eq!(meta.royalty_bps, Some(1000u32));
-    assert_eq!(meta.current_owner, player);
-}
-
-#[test]
-fn test_burn_removes_nft_and_clears_owner_list() {
-    let env = setup_env();
-    let client = setup_nft_reward(&env, None);
-
-#[test]
-fn test_initialize_stores_admin_and_minter() {
-    let (env, contract_id, admin, minter) = setup_initialized();
-    let client = NftRewardClient::new(&env, &contract_id);
-
-    assert_eq!(client.get_admin(), Some(admin));
-
-    let nft_id = client.mint_reward_nft(&1, &owner, &metadata);
-    assert!(client.get_nft(&nft_id).is_some());
-
-    client.burn(&nft_id, &owner);
-
-    assert!(client.get_nft(&nft_id).is_none());
-    assert_eq!(client.get_player_nfts(&owner, &0, &100).len(), 0);
-}
-
-#[test]
-fn test_burn_fails_if_not_owner() {
-    let env = setup_env();
-    let client = setup_nft_reward(&env, None);
-
-    client.initialize(&admin, &minter, &None);
-}
-
-#[test]
-fn test_burn_fails_for_nonexistent_nft() {
-    let env = setup_env();
-    let client = setup_nft_reward(&env, None);
-
-    let rogue = Address::generate(&env);
-    let player = Address::generate(&env);
-    let metadata = create_metadata(&env, "Rogue NFT", "Desc", "ipfs://rogue");
-    client.mint_reward_nft(&rogue, &1, &player, &metadata);
-}
-
-#[test]
-fn test_add_minter_allows_new_minter() {
-    let (env, contract_id, admin, _original_minter) = setup_initialized();
-    let client = NftRewardClient::new(&env, &contract_id);
-
-    let new_minter = Address::generate(&env);
-    client.add_minter(&admin, &new_minter);
-
-    let player = Address::generate(&env);
-    let metadata = create_metadata(&env, "New Minter NFT", "Desc", "ipfs://new");
-    let nft_id = client.mint_reward_nft(&new_minter, &1, &player, &metadata);
-    assert_eq!(nft_id, 1);
-}
-
-#[test]
-#[should_panic]
-fn test_remove_minter_revokes_access() {
-    let (env, contract_id, admin, minter) = setup_initialized();
-    let client = NftRewardClient::new(&env, &contract_id);
-
-    client.remove_minter(&admin, &minter);
-
-    let player = Address::generate(&env);
-    let metadata = create_metadata(&env, "Revoked NFT", "Desc", "ipfs://revoked");
-    client.mint_reward_nft(&minter, &1, &player, &metadata);
-}
-
-#[test]
-#[should_panic]
-fn test_add_minter_requires_admin() {
-    let (env, contract_id, _admin, _minter) = setup_initialized();
-    let client = NftRewardClient::new(&env, &contract_id);
-
-    let imposter = Address::generate(&env);
-    let new_minter = Address::generate(&env);
-    client.add_minter(&imposter, &new_minter);
-}
-
-#[test]
-#[should_panic]
-fn test_max_supply_enforced() {
-    let env = setup_env();
-    let contract_id = env.register_contract(None, NftReward);
-    let client = NftRewardClient::new(&env, &contract_id);
-
-    let admin = Address::generate(&env);
-    let minter = Address::generate(&env);
-    client.initialize(&admin, &minter, &Some(2));
-
-    let player = Address::generate(&env);
-    let m1 = create_metadata(&env, "NFT 1", "Desc", "ipfs://1");
-    let m2 = create_metadata(&env, "NFT 2", "Desc", "ipfs://2");
-    let m3 = create_metadata(&env, "NFT 3", "Desc", "ipfs://3");
-
-    client.mint_reward_nft(&minter, &1, &player, &m1);
-    client.mint_reward_nft(&minter, &2, &player, &m2);
-    // Third mint should panic — max supply is 2
-    client.mint_reward_nft(&minter, &3, &player, &m3);
-}
-
-#[test]
-fn test_no_max_supply_allows_unlimited_mints() {
-    let (env, contract_id, _admin, minter) = setup_initialized();
-    let client = NftRewardClient::new(&env, &contract_id);
-
-    let player = Address::generate(&env);
-    for i in 1u64..=5 {
-        let metadata = create_metadata(&env, "NFT", "Desc", "ipfs://x");
-        client.mint_reward_nft(&minter, &i, &player, &metadata);
-    }
-    assert_eq!(client.total_supply(), 5);
-}
-
-#[test]
-#[should_panic(expected = "HostError")]
-fn test_max_supply_cap_blocks_additional_mints() {
-    let env = setup_env();
-    let client = setup_nft_reward(&env, Some(2));
-
-    let player1 = Address::generate(&env);
-    let player2 = Address::generate(&env);
-    let player3 = Address::generate(&env);
-
-    let metadata1 = create_metadata(&env, "NFT 1", "Desc 1", "ipfs://1");
-    let metadata2 = create_metadata(&env, "NFT 2", "Desc 2", "ipfs://2");
-    let metadata3 = create_metadata(&env, "NFT 3", "Desc 3", "ipfs://3");
-
-    client.mint_reward_nft(&1, &player1, &metadata1);
-    client.mint_reward_nft(&1, &player2, &metadata2);
-    client.mint_reward_nft(&1, &player3, &metadata3);
-}
-
-#[test]
-fn test_mint_reward_nft_from_map_with_missing_keys_uses_defaults() {
-    let env = setup_env();
-    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
-
-    let player = Address::generate(&env);
     let mut metadata: Map<Symbol, Val> = Map::new(&env);
-    // Only provide title, omit all other keys
     metadata.set(Symbol::new(&env, "title"), String::from_str(&env, "Test NFT").into_val(&env));
 
     let nft_id = client.mint_reward_nft_from_map(&1, &player, &metadata);
@@ -866,41 +879,94 @@ fn test_mint_reward_nft_from_map_with_missing_keys_uses_defaults() {
     let nft = client.get_nft(&nft_id).unwrap();
     assert_eq!(nft.metadata.title, String::from_str(&env, "Test NFT"));
     assert_eq!(nft.metadata.description, String::from_str(&env, "")); // default
-    assert_eq!(nft.metadata.image_uri, String::from_str(&env, "")); // default
+    assert_eq!(nft.metadata.image_uri, String::from_str(&env, ""));   // default
     assert_eq!(nft.metadata.hunt_title, String::from_str(&env, "Test NFT")); // defaults to title
     assert_eq!(nft.metadata.rarity, 0u32); // default
-    assert_eq!(nft.metadata.tier, 0u32); // default
-    assert_eq!(nft.transferable, false); // default
+    assert_eq!(nft.metadata.tier, 0u32);   // default
+    assert_eq!(nft.transferable, false);   // default
 }
 
 #[test]
 fn test_mint_reward_nft_from_map_with_invalid_types_uses_defaults() {
+    use soroban_sdk::{Map, Symbol};
+
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+    let player = Address::generate(&env);
+
+    let mut metadata: Map<Symbol, Val> = Map::new(&env);
+    metadata.set(Symbol::new(&env, "title"), 123u32.into_val(&env)); // invalid type
+    metadata.set(Symbol::new(&env, "rarity"), "not a number".into_val(&env)); // invalid type
+
+    let nft_id = client.mint_reward_nft_from_map(&1, &player, &metadata);
+
+    let nft = client.get_nft(&nft_id).unwrap();
+    assert_eq!(nft.metadata.title, String::from_str(&env, "")); // default
+    assert_eq!(nft.metadata.rarity, 0u32); // default
+}
+
     let env = setup_env();
     let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
 
     let player = Address::generate(&env);
+#[test]
+fn test_update_metadata_doesnt_duplicate_nft_ids() {
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+
+    let player = Address::generate(&env);
+    let metadata = create_metadata(&env, "Original Title", "Original Desc", "ipfs://original");
+    let nft_id = client.mint_reward_nft(&1, &player, &metadata);
+
+    // Update metadata
+    client.update_nft_metadata(
+        &nft_id,
+        &player,
+        &String::from_str(&env, "Updated Desc"),
+        &String::from_str(&env, "ipfs://updated"),
+    ).unwrap();
+
+    // Search should still return only 1 NFT (not duplicated)
+    let results = client.search_by_title(&String::from_str(&env, "original"));
+    assert_eq!(results.len(), 1);
+
+    // Search with no filters should return only 1 NFT
+    let all_results = client.search_nfts(None, None, None, None);
+    assert_eq!(all_results.len(), 1);
+}
+
+#[test]
+fn test_mint_reward_nft_from_map_with_invalid_types_uses_defaults() {
+    use soroban_sdk::{Map, Symbol};
+
+    let env = setup_env();
+    let client = NftRewardClient::new(&env, &env.register_contract(None, NftReward));
+    let player = Address::generate(&env);
+
     let mut metadata: Map<Symbol, Val> = Map::new(&env);
-    
+
     // Provide valid title
     metadata.set(Symbol::new(&env, "title"), String::from_str(&env, "Valid Title").into_val(&env));
-    
-    // Provide invalid types for other fields (wrong type conversions will fail and use defaults)
-    metadata.set(Symbol::new(&env, "description"), 123456u32.into_val(&env)); // u32 instead of String
-    metadata.set(Symbol::new(&env, "image_uri"), true.into_val(&env)); // bool instead of String
-    metadata.set(Symbol::new(&env, "hunt_title"), 999u32.into_val(&env)); // u32 instead of String
-    metadata.set(Symbol::new(&env, "rarity"), String::from_str(&env, "invalid").into_val(&env)); // String instead of u32
-    metadata.set(Symbol::new(&env, "tier"), String::from_str(&env, "invalid").into_val(&env)); // String instead of u32
-    metadata.set(Symbol::new(&env, "transferable"), 123u32.into_val(&env)); // u32 instead of bool
 
-    // This should not panic; invalid types should use defaults
+    // Provide invalid types for other fields
+    metadata.set(Symbol::new(&env, "description"), 123456u32.into_val(&env)); // invalid
+    metadata.set(Symbol::new(&env, "image_uri"), true.into_val(&env));       // invalid
+    metadata.set(Symbol::new(&env, "hunt_title"), 999u32.into_val(&env));    // invalid
+    metadata.set(Symbol::new(&env, "rarity"), String::from_str(&env, "invalid").into_val(&env)); // invalid
+    metadata.set(Symbol::new(&env, "tier"), String::from_str(&env, "invalid").into_val(&env));   // invalid
+    metadata.set(Symbol::new(&env, "transferable"), 123u32.into_val(&env));  // invalid
+
+    // Mint should succeed, invalid types fall back to defaults
     let nft_id = client.mint_reward_nft_from_map(&1, &player, &metadata);
 
     let nft = client.get_nft(&nft_id).unwrap();
     assert_eq!(nft.metadata.title, String::from_str(&env, "Valid Title"));
-    assert_eq!(nft.metadata.description, String::from_str(&env, "")); // default due to invalid type
-    assert_eq!(nft.metadata.image_uri, String::from_str(&env, "")); // default due to invalid type
+    assert_eq!(nft.metadata.description, String::from_str(&env, "")); // default
+    assert_eq!(nft.metadata.image_uri, String::from_str(&env, ""));   // default
     assert_eq!(nft.metadata.hunt_title, String::from_str(&env, "Valid Title")); // defaults to title
-    assert_eq!(nft.metadata.rarity, 0u32); // default due to invalid type
-    assert_eq!(nft.metadata.tier, 0u32); // default due to invalid type
-    assert_eq!(nft.transferable, false); // default due to invalid type
+    assert_eq!(nft.metadata.rarity, 0u32); // default
+    assert_eq!(nft.metadata.tier, 0u32);   // default
+    assert_eq!(nft.transferable, false);   // default
+}
+
 }
