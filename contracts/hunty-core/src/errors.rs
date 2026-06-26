@@ -18,28 +18,23 @@ pub enum HuntErrorCode {
     InvalidTitle = 11,
     InvalidDescription = 12,
     InvalidAddress = 13,
-    InvalidMaxAttempts = 14,
-    MaxAttemptsExceeded = 15,
-    TooManyClues = 16,
-    InvalidQuestion = 17,
-    RefundFailed = 18,
-    NoCluesAdded = 19,
-    HuntNotCompleted = 20,
-    RewardAlreadyClaimed = 21,
-    RewardDistributionFailed = 22,
-    NoRewardsConfigured = 23,
-    DuplicateSubmission = 24,
-    SubmissionExpired = 25,
-    BannedPlayer = 26,
-    NoRequiredClues = 27,
-    RateLimitExceeded = 28,
-    ScoreOverflow = 29,
-    InvalidRarity = 30,
-    InvalidTimeBonusConfig = 31,
-    InvalidEndTime = 32,
-    ContractPaused = 33,
-    InvalidDifficulty = 34,
-    InvalidPoints = 35,
+    TooManyClues = 14,
+    InvalidQuestion = 15,
+    RefundFailed = 16,
+    NoCluesAdded = 17,
+    HuntNotCompleted = 18,
+    RewardAlreadyClaimed = 19,
+    RewardDistributionFailed = 20,
+    NoRewardsConfigured = 21,
+    DuplicateSubmission = 22,
+    SubmissionExpired = 23,
+    BannedPlayer = 24,
+    NoRequiredClues = 25,
+    RateLimitExceeded = 26,
+    ScoreOverflow = 27,
+    RegistrationsPaused = 28,
+    AnswersPaused = 29,
+    RewardsPaused = 30,
 }
 
 #[derive(Debug)]
@@ -69,9 +64,9 @@ pub enum HuntError {
     NoRequiredClues { hunt_id: u64 },
     RateLimitExceeded { cooldown_remaining: u64 },
     ScoreOverflow,
-    InvalidRarity { value: u32 },
-    InvalidTimeBonusConfig,
-    InvalidEndTime,
+    RegistrationsPaused,
+    AnswersPaused,
+    RewardsPaused,
 }
 
 impl fmt::Display for HuntError {
@@ -170,14 +165,14 @@ impl fmt::Display for HuntError {
             HuntError::ScoreOverflow => {
                 write!(f, "Score calculation overflow")
             }
-            HuntError::InvalidRarity { value } => {
-                write!(f, "Invalid rarity value: {}", value)
+            HuntError::RegistrationsPaused => {
+                write!(f, "Registrations are currently paused")
             }
-            HuntError::InvalidTimeBonusConfig => {
-                write!(f, "Invalid time bonus configuration")
+            HuntError::AnswersPaused => {
+                write!(f, "Answer submissions are currently paused")
             }
-            HuntError::InvalidEndTime => {
-                write!(f, "Invalid end time")
+            HuntError::RewardsPaused => {
+                write!(f, "Reward claims are currently paused")
             }
         }
     }
@@ -211,9 +206,9 @@ impl From<HuntError> for HuntErrorCode {
             HuntError::NoRequiredClues { .. } => HuntErrorCode::NoRequiredClues,
             HuntError::RateLimitExceeded { .. } => HuntErrorCode::RateLimitExceeded,
             HuntError::ScoreOverflow => HuntErrorCode::ScoreOverflow,
-            HuntError::InvalidRarity { .. } => HuntErrorCode::InvalidRarity,
-            HuntError::InvalidTimeBonusConfig => HuntErrorCode::InvalidTimeBonusConfig,
-            HuntError::InvalidEndTime => HuntErrorCode::InvalidEndTime,
+            HuntError::RegistrationsPaused => HuntErrorCode::RegistrationsPaused,
+            HuntError::AnswersPaused => HuntErrorCode::AnswersPaused,
+            HuntError::RewardsPaused => HuntErrorCode::RewardsPaused,
         }
     }
 }

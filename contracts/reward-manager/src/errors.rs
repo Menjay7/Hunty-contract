@@ -30,6 +30,10 @@ pub enum RewardErrorCode {
 
     /// hunt_id does not exist in HuntyCore (validated via cross-contract call).
     HuntNotFound = 13,
-    /// Balance does not match expected amount.
-    PoolBalanceDivergence = 14,
+
+    /// A recursive distribution attempt was detected during an external XLM or NFT call.
+    ReentrancyDetected = 14,
+
+    /// The tracked pool balance diverged from the actual XLM token balance.
+    PoolBalanceDivergence = 15,
 }

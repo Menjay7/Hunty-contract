@@ -1,5 +1,22 @@
 use soroban_sdk::{contracttype, Address, BytesN, Env, String, Vec};
 
+/// Semantic version (major.minor.patch). Compatible if major matches and self >= required.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SemVer {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+}
+
+impl SemVer {
+    pub fn is_compatible_with(&self, required: &SemVer) -> bool {
+        self.major == required.major
+            && (self.minor > required.minor
+                || (self.minor == required.minor && self.patch >= required.patch))
+    }
+}
+
 #[contracttype]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HuntStatus {
@@ -43,7 +60,7 @@ pub struct Hunt {
     pub required_clues: u32,
     pub completed_count: u32,
     pub max_submissions_per_minute: u32,
-    pub max_attempts_per_clue: u32,
+    pub start_multiplier_bps: u32,
 }
 
 /// Stored clue with SHA256 answer hash. The hash is never exposed via get_clue/list_clues or events.
@@ -55,7 +72,6 @@ pub struct Clue {
     pub answer_hashes: Vec<BytesN<32>>,
     pub points: u32,
     pub is_required: bool,
-    /// Difficulty multiplier (1-10). Points earned = points * difficulty.
     pub difficulty: u32,
 }
 
@@ -67,7 +83,6 @@ pub struct ClueInfo {
     pub question: String,
     pub points: u32,
     pub is_required: bool,
-    /// Difficulty multiplier (1-10).
     pub difficulty: u32,
 }
 
