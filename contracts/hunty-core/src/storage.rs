@@ -28,7 +28,10 @@ impl Storage {
     const CLUE_COUNTER_KEY: soroban_sdk::Symbol = symbol_short!("CCNT");
     const REWARD_MGR_KEY: soroban_sdk::Symbol = symbol_short!("RWDMGR");
     const ADMIN_KEY: soroban_sdk::Symbol = symbol_short!("ADMIN");
-    const PAUSED_KEY: soroban_sdk::Symbol = symbol_short!("PAUSED");
+const PAUSED_KEY: soroban_sdk::Symbol = symbol_short!("PAUSED");
+const VIEW_ONLY_KEY: soroban_sdk::Symbol = symbol_short!("VIEW");
+const GLOBAL_VIEW_ONLY_KEY: soroban_sdk::Symbol = symbol_short!("GVW");
+
 
     // ========== Hunt Storage Functions ==========
 
@@ -164,6 +167,11 @@ impl Storage {
 
     fn player_count_key(hunt_id: u64) -> (soroban_sdk::Symbol, u64) {
         (Self::PLAYER_COUNT_KEY, hunt_id)
+    }
+
+    /// Key for view-only addresses for a hunt.
+    fn view_only_key(hunt_id: u64) -> (soroban_sdk::Symbol, u64) {
+        (Self::VIEW_ONLY_KEY, hunt_id)
     }
 
     // ========== Internal Helper Functions ==========
@@ -329,14 +337,119 @@ impl Storage {
     }
 
     // ========== Contract Admin / Pause Storage Functions ==========
+    pub fn set_paused(env: &Env, paused: bool) {
+        env.storage().instance().set(&PAUSED_KEY, &paused);
+    }
+
+    pub fn is_paused(env: &Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&PAUSED_KEY)
+            .unwrap_or(false)
+    }
+
+    // ========== View-Only Access Functions ==========
+
+    /// Adds an address to the view-only list for a specific hunt.
+    pub fn add_view_only(env: &Env, hunt_id: u64, address: &Address) {
+        let key = Self::view_only_key(hunt_id);
+        let mut view_only_list = env
+            .storage()
+            .instance()
+            .get(&key)
+            .unwrap_or_else(|| Vec::new(env));
+
+        if view_only_list.first_index_of(address).is_none() {
+            view_only_list.push_back(address.clone());
+            env.storage().instance().set(&key, &view_only_list);
+        }
+    }
+
+    /// Removes an address from the view-only list for a specific hunt.
+    pub fn remove_view_only(env: &Env, hunt_id: u64, address: &Address) {
+        let key = Self::view_only_key(hunt_id);
+        let mut view_only_list = env
+            .storage()
+            .instance()
+            .get(&key)
+            .unwrap_or_else(|| Vec::new(env));
+
+        if let Some(idx) = view_only_list.first_index_of(address) {
+            view_only_list.remove(idx);
+            env.storage().instance().set(&key, &view_only_list);
+        }
+    }
+
+    /// Checks if an address has view-only access for a specific hunt.
+    pub fn is_view_only(env: &Env, hunt_id: u64, address: &Address) -> bool {
+        let key = Self::view_only_key(hunt_id);
+        let view_only_list = env
+            .storage()
+            .instance()
+            .get(&key)
+            .unwrap_or_else(|| Vec::new(env));
+
+        view_only_list.first_index_of(address).is_some()
+    }
+
+    /// Gets all view-only addresses for a specific hunt.
+    pub fn get_view_only_list(env: &Env, hunt_id: u64) -> Vec<Address> {
+        let key = Self::view_only_key(hunt_id);
+        env.storage()
+            .instance()
+            .get(&key)
+            .unwrap_or_else(|| Vec::new(env))
+    }
+
+    // ========== Global Admin Functions ==========
+    pub fn set_admin(env: &Env, admin: &Address) {
+        env.storage().instance().set(&ADMIN_KEY, admin);
+    }
+
+    pub fn get_admin(env: &Env) -> Option<Address> {
+        env.storage().instance().get(&ADMIN_KEY)
+    }
 
     pub fn set_admin(env: &Env, admin: &Address) {
         env.storage().instance().set(&Self::ADMIN_KEY, admin);
     }
 
+    // ========== Contract Admin / Pause Storage Functions ==========
+
+    pub fn set_paused(env: &Env, paused: bool) {
+        env.storage().instance().set(&PAUSED_KEY, &paused);
+    }
+
+    pub fn is_paused(env: &Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&PAUSED_KEY)
+            .unwrap_or(false)
+    }
+
+    // ========== Global Admin Functions ==========
+
+    /// Sets the contract admin address.
+    pub fn set_admin(env: &Env, admin: &Address) {
+        env.storage().instance().set(&ADMIN_KEY, admin);
+    }
+
+    /// Gets the contract admin address.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    ///
+    /// # Returns
+    /// The admin address if set, None otherwise
+    pub fn get_admin(env: &Env) -> Option<Address> {
+        env.storage().instance().get(&ADMIN_KEY)
+    }
+
     pub fn get_admin(env: &Env) -> Option<Address> {
         env.storage().instance().get(&Self::ADMIN_KEY)
     }
+
+    // ========== Contract Pause Functions ==========
 
     pub fn set_contract_paused(env: &Env, paused: bool) {
         env.storage().instance().set(&Self::PAUSED_KEY, &paused);
@@ -347,5 +460,56 @@ impl Storage {
             .instance()
             .get(&Self::PAUSED_KEY)
             .unwrap_or(false)
+    }
+
+    // ========== Global View-Only Access Functions ==========
+
+    /// Adds an address to the global view-only list.
+    pub fn add_global_view_only(env: &Env, address: &Address) {
+        let mut view_only_list = env
+            .storage()
+            .instance()
+            .get(&Self::GLOBAL_VIEW_ONLY_KEY)
+            .unwrap_or_else(|| Vec::new(env));
+
+        if view_only_list.first_index_of(address).is_none() {
+            view_only_list.push_back(address.clone());
+            env.storage().instance().set(&Self::GLOBAL_VIEW_ONLY_KEY, &view_only_list);
+        }
+    }
+
+    /// Removes an address from the global view-only list.
+    pub fn remove_global_view_only(env: &Env, address: &Address) {
+        let mut view_only_list = env
+            .storage()
+            .instance()
+            .get(&Self::GLOBAL_VIEW_ONLY_KEY)
+            .unwrap_or_else(|| Vec::new(env));
+
+        if let Some(idx) = view_only_list.first_index_of(address) {
+            view_only_list.remove(idx);
+            env.storage().instance().set(&Self::GLOBAL_VIEW_ONLY_KEY, &view_only_list);
+        }
+    }
+
+    /// Checks if an address has global view-only access.
+    pub fn is_global_view_only(env: &Env, address: &Address) -> bool {
+        let view_only_list = env
+            .storage()
+            .instance()
+            .get(&Self::GLOBAL_VIEW_ONLY_KEY)
+            .unwrap_or_else(|| Vec::new(env));
+
+        view_only_list.first_index_of(address).is_some()
+    }
+
+    /// Gets all global view-only addresses.
+    pub fn get_global_view_only_list(env: &Env) -> Vec<Address> {
+        env.storage()
+            .instance()
+            .get(&Self::GLOBAL_VIEW_ONLY_KEY)
+            .unwrap_or_else(|| Vec::new(env))
+    }
+
     }
 }

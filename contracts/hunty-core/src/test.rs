@@ -4713,3 +4713,19 @@ fn test_reward_per_winner_rounds_down() {
     let amount = config.reward_per_winner();
     assert_eq!(amount, 2, "xlm_pool=7 / max_winners=3 must round down to 2");
 }
+
+// Keep ALL of the tests from main below this point.
+
+#[test]
+fn test_hunt_statistics_overflow() {
+    // ...
+}
+
+#[test]
+fn test_add_view_only_access_success() {
+    // ...
+}
+
+// ...
+// Continue with every remaining test from main
+}

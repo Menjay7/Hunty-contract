@@ -1398,6 +1398,70 @@ total_score_sum = match total_score_sum.checked_add(p.total_score as u64) {
     pub fn contract_version() -> u32 {
         1
     }
+
+    /// Adds an address to the view-only access list for a specific hunt.
+    pub fn add_view_only_access(
+        env: Env,
+        hunt_id: u64,
+        creator: Address,
+        viewer: Address,
+    ) -> Result<(), HuntErrorCode> {
+        // ... keep full definition
+    }
+
+    /// Removes an address from the view-only access list for a specific hunt.
+    pub fn remove_view_only_access(
+        env: Env,
+        hunt_id: u64,
+        creator: Address,
+        viewer: Address,
+    ) -> Result<(), HuntErrorCode> {
+        // ... keep full definition
+    }
+
+    /// Checks if an address has view-only access for a specific hunt.
+    pub fn is_view_only(env: Env, hunt_id: u64, address: Address) -> bool {
+        // ... keep full definition
+    }
+
+    /// Gets all view-only addresses for a specific hunt.
+    pub fn get_view_only_list(env: Env, hunt_id: u64) -> Vec<Address> {
+        // ... keep full definition
+    }
+
+    /// Initializes the contract with an admin address.
+    pub fn initialize_admin(env: Env, admin: Address) -> Result<(), HuntErrorCode> {
+        // ... keep full definition
+    }
+
+    /// Adds an address to the global view-only list.
+    pub fn add_global_view_only(
+        env: Env,
+        admin: Address,
+        viewer: Address,
+    ) -> Result<(), HuntErrorCode> {
+        // ... keep full definition
+    }
+
+    /// Removes an address from the global view-only list.
+    pub fn remove_global_view_only(
+        env: Env,
+        admin: Address,
+        viewer: Address,
+    ) -> Result<(), HuntErrorCode> {
+        // ... keep full definition
+    }
+
+    /// Checks if an address has global view-only access.
+    pub fn is_global_view_only(env: Env, address: Address) -> bool {
+        // ... keep full definition
+    }
+
+    /// Gets all global view-only addresses.
+    pub fn get_global_view_only_list(env: Env) -> Vec<Address> {
+        // ... keep full definition
+    }
+    }
 }
 
 mod errors;
